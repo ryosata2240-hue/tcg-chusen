@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>トレカ抽選ボード</title>
+<style>
+:root{
+  --bg:#f6f5f2;--card:#fff;--ink:#1d1d1f;--sub:#6b6b70;--line:#e4e2dc;
+  --accent:#2a5bd7;--urgent:#d23b2a;--urgent-bg:#fdecea;--new:#e8a100;
+  --net:#2a7d4f;--local:#2a5bd7;--check:#a66a00;--none:#8a8a8f;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#141416;--card:#1f1f22;--ink:#ececef;--sub:#9a9aa2;--line:#303035;
+  --accent:#7ea2ff;--urgent:#ff7a6b;--urgent-bg:#3a1f1c;--new:#ffc244;
+  --net:#5fcf8f;--local:#7ea2ff;--check:#e6b04a;--none:#77777d;
+}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 -apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif}
+.wrap{max-width:760px;margin:0 auto;padding:16px}
+header h1{font-size:22px;margin:4px 0 2px;letter-spacing:.02em}
+.meta{color:var(--sub);font-size:13px}
+.warn{background:var(--urgent-bg);color:var(--urgent);padding:8px 12px;border-radius:8px;margin:10px 0;font-size:13px}
+.bar{position:sticky;top:0;z-index:5;background:var(--bg);padding:10px 0 8px;border-bottom:1px solid var(--line);margin-bottom:12px}
+.row{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
+.row+.row{margin-top:6px}
+.chip{flex:none;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;padding:5px 12px;font-size:13px;cursor:pointer}
+.chip[aria-pressed=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.chip .n{opacity:.6;margin-left:4px}
+h2{font-size:14px;color:var(--sub);margin:20px 0 8px;font-weight:600}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px}
+.card.urgent{border-color:var(--urgent)}
+.top{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12px}
+.tag{border-radius:4px;padding:1px 6px;font-weight:600;border:1px solid currentColor}
+.tag.net{color:var(--net)}.tag.local{color:var(--local)}.tag.check{color:var(--check)}.tag.none{color:var(--none)}
+.game{color:var(--sub)}
+.new{background:var(--new);color:#000;border-radius:4px;padding:1px 6px;font-weight:700}
+.shop{font-size:16px;font-weight:700;margin:6px 0 2px}
+.prod{margin:0;padding-left:18px;font-size:14px}
+.dl{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;font-size:13px;margin:8px 0 0}
+.dl dt{color:var(--sub)}.dl dd{margin:0}
+.left{font-weight:700}.urgent .left{color:var(--urgent)}
+details{margin-top:6px;font-size:13px;color:var(--sub)}
+details div{white-space:pre-wrap;margin-top:4px}
+.acts{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.btn{display:inline-block;text-decoration:none;border-radius:8px;padding:7px 14px;font-size:14px;font-weight:600}
+.btn.main{background:var(--accent);color:#fff}
+.btn.sub{border:1px solid var(--line);color:var(--sub);font-weight:400}
+.empty{color:var(--sub);text-align:center;padding:30px 0}
+footer{color:var(--sub);font-size:12px;margin:30px 0 10px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>トレカ抽選ボード</h1>
+  <div class="meta" id="meta"></div>
+  <div id="warns"></div>
+</header>
+<div class="bar">
+  <div class="row" id="areas"></div>
+  <div class="row" id="games"></div>
+</div>
+<main id="list"></main>
+<footer>
+  情報元：<a href="https://nyuka-now.com" target="_blank" rel="noopener">入荷Now</a>（個人用に自動で整理しています）。応募前に必ずリンク先の公式情報を確認してください。<br>
+  「札幌」判定はチェーン単位の目安です。対象店舗に札幌近郊店が入っているかは応募ページで確認してください。
+</footer>
+</div>
+<script>
+const D=/*DATA*/null;
+const AREAS=[
+  {k:"ok",label:"応募できる",test:i=>i.area==="net"||i.area==="local"},
+  {k:"local",label:"札幌で受取",test:i=>i.area==="local"},
+  {k:"net",label:"ネット完結",test:i=>i.area==="net"},
+  {k:"check",label:"要確認",test:i=>i.area==="check"},
+  {k:"none",label:"札幌では不可",test:i=>i.area==="none"},
+];
+const AREA_LABEL={net:"ネット",local:"札幌で受取",check:"要確認",none:"札幌不可"};
+const GAMES=["すべて","ポケモンカード","遊戯王","ワンピース","ドラゴンボール","複数タイトル"];
+const store={get(k,d){try{return localStorage.getItem(k)??d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+let area=store.get("area","ok"), game=store.get("game","すべて");
+const lastVisit=store.get("lastVisit","");
+const now=new Date();
+store.set("lastVisit",D.updated);
+
+function esc(s){return String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+function left(iso){
+  if(!iso)return {t:"締切不明",u:false};
+  const ms=new Date(iso)-now;
+  if(ms<0)return {t:"締切済み",u:false};
+  const h=ms/36e5;
+  if(h<1)return {t:`あと${Math.max(1,Math.round(ms/6e4))}分`,u:true};
+  if(h<24)return {t:`あと${Math.floor(h)}時間`,u:true};
+  return {t:`あと${Math.floor(h/24)}日`,u:false};
+}
+function isNew(i){
+  const t=new Date(i.first_seen);
+  return (lastVisit&&i.first_seen>lastVisit)||(now-t<24*36e5);
+}
+function chips(el,items,cur,onPick){
+  el.innerHTML=items.map(x=>`<button class="chip" aria-pressed="${x.k===cur}" data-k="${esc(x.k)}">${esc(x.label)}<span class="n">${x.n}</span></button>`).join("");
+  el.querySelectorAll("button").forEach(b=>b.onclick=()=>onPick(b.dataset.k));
+}
+function card(i){
+  const l=left(i.end);
+  const url=i.url||i.source;
+  return `<article class="card${l.u?" urgent":""}">
+    <div class="top">
+      <span class="tag ${i.area}" title="${esc(i.area_note)}">${AREA_LABEL[i.area]}</span>
+      <span class="game">${esc(i.game)}</span>
+      ${i.members_only?'<span class="game">会員限定</span>':""}
+      ${isNew(i)?'<span class="new">NEW</span>':""}
+    </div>
+    <div class="shop">${esc(i.shop)}</div>
+    <ul class="prod">${i.products.map(p=>`<li>${esc(p)}</li>`).join("")}</ul>
+    <dl class="dl">
+      <dt>締切</dt><dd><span class="left">${l.t}</span>　${esc(i.end_text||"—")}</dd>
+      <dt>開始</dt><dd>${esc(i.start_text||"—")}</dd>
+      <dt>方式</dt><dd>${esc(i.format)}</dd>
+      ${i.announce?`<dt>発表</dt><dd>${esc(i.announce)}</dd>`:""}
+      <dt>判定</dt><dd>${esc(i.area_note)}</dd>
+    </dl>
+    ${i.conditions?`<details><summary>応募条件</summary><div>${esc(i.conditions)}</div></details>`:""}
+    <div class="acts">
+      <a class="btn main" href="${esc(url)}" target="_blank" rel="noopener">${i.url?"応募・詳細ページ":"情報元を見る"}</a>
+      ${i.url?`<a class="btn sub" href="${esc(i.source)}" target="_blank" rel="noopener">情報元</a>`:""}
+    </div>
+  </article>`;
+}
+function render(){
+  const byGame=i=>game==="すべて"||i.game===game;
+  const aDef=AREAS.find(a=>a.k===area)||AREAS[0];
+  chips(document.getElementById("areas"),AREAS.map(a=>({k:a.k,label:a.label,n:D.items.filter(i=>a.test(i)&&byGame(i)).length})),area,k=>{area=k;store.set("area",k);render()});
+  chips(document.getElementById("games"),GAMES.map(g=>({k:g,label:g,n:D.items.filter(i=>aDef.test(i)&&(g==="すべて"||i.game===g)).length})).filter(x=>x.n||x.k===game||x.k==="すべて"),game,k=>{game=k;store.set("game",k);render()});
+  const xs=D.items.filter(i=>aDef.test(i)&&byGame(i));
+  const open=xs.filter(i=>!i.upcoming), soon=xs.filter(i=>i.upcoming);
+  let h="";
+  h+=`<h2>受付中（締切が近い順）${open.length}件</h2>`+(open.length?open.map(card).join(""):'<div class="empty">該当なし</div>');
+  if(soon.length)h+=`<h2>これから受付開始 ${soon.length}件</h2>`+soon.map(card).join("");
+  document.getElementById("list").innerHTML=h;
+}
+const up=new Date(D.updated);
+document.getElementById("meta").textContent=`最終更新 ${up.toLocaleString("ja-JP",{month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"})}　全${D.items.length}件`;
+let w="";
+if(now-up>2*36e5)w+=`<div class="warn">2時間以上更新されていません。自動更新が止まっている可能性があります。</div>`;
+if(D.errors.length)w+=`<div class="warn">一部の情報元を読み込めませんでした（${D.errors.length}件）。</div>`;
+document.getElementById("warns").innerHTML=w;
+render();
+</script>
+</body>
+</html>
