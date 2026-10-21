@@ -9,3 +9,4 @@
 - `stores.json` … 札幌近郊に店舗があるチェーンの判定表（追加・修正はここ）
 - `state/seen.json` … いつ見つけたかの記録（NEW表示用）
 - `.github/workflows/update.yml` … 15分ごとの自動実行
+- `.claude/skills/security-audit/` … Claude Code 用のセキュリティ監査スキル（[cloudflare/security-audit-skill](https://github.com/cloudflare/security-audit-skill) c1c8a8c をそのまま取り込み、MITライセンス）
